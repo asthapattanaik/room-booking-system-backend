@@ -5,7 +5,11 @@ const bodyParser = require("body-parser");
 const { bookRooms, getBookings, resetBookings, generateRandomOccupancy } = require("./controller/bookingController");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: "https://room-booking-system-tau.vercel.app/",
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization"
+  }));
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => res.send("Hotel Room Reservation System"));
