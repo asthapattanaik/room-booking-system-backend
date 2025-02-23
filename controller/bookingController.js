@@ -18,55 +18,62 @@ async function getAvailableRooms() {
   return floorMap;
 }
 
+// Calculates the total travel time for a given set of rooms.
 function calculateTravelTime(rooms) {
   let totalTime = 0;
+
   for (const room of rooms) {
-    const horizontalTime = room.roomNumber % 100;
-    const verticalTime = (room.floorNumber - 1) * 2;
+    const horizontalTime = room.roomNumber % 100; // Room number's last two digits represent its position on the floor
+    const verticalTime = (room.floorNumber - 1) * 2; // Each floor transition adds 2 units of time
     totalTime += horizontalTime + verticalTime;
   }
+
   return totalTime;
 }
 
+// Finds the optimal set of rooms for booking that minimizes travel time.
 function findBestRooms(floorMap, numRooms) {
   let bestChoice = null;
   let minTravelTime = Infinity;
 
+  // Iterate through each floor
   for (let [floor, rooms] of floorMap.entries()) {
-    if (rooms.length < numRooms) continue;
+    if (rooms.length < numRooms) continue; // Skip floors with insufficient available rooms
 
+    // Check all possible consecutive room groupings of size numRooms
     for (let i = 0; i <= rooms.length - numRooms; i++) {
       const selectedRooms = rooms.slice(i, i + numRooms);
       const travelTime = calculateTravelTime(selectedRooms);
 
+      // Select the group with the lowest travel time
       if (travelTime < minTravelTime) {
         minTravelTime = travelTime;
         bestChoice = selectedRooms;
       }
     }
   }
+
   return bestChoice;
 }
 
 async function generateRandomOccupancy() {
-  // Clear all previous bookings first
+  // Reset all room bookings before generating new ones
   await updateRoomStatus((await getAllRooms()).map((r) => r.id), false);
 
-  // Get updated available rooms
+  // Fetch the latest list of unbooked rooms
   const availableRooms = (await getAllRooms()).filter(room => !room.isBooked);
 
   if (availableRooms.length === 0) {
     return { message: "No available rooms to book." };
   }
 
-  // Select random number of rooms (between 1 and available count)
+  // Randomly determine the number of rooms to book (at least 1, at most 97 or available count)
   let numRoomsToBook = Math.floor(Math.random() * Math.min(97, availableRooms.length)) + 1;
 
-  // Shuffle and pick random rooms
+  // Shuffle available rooms and pick the first `numRoomsToBook` rooms
   const shuffledRooms = availableRooms.sort(() => Math.random() - 0.5);
   const selectedRooms = shuffledRooms.slice(0, numRoomsToBook);
 
-  // Book the selected rooms
   await updateRoomStatus(selectedRooms.map(room => room.id), true);
 
   return {
@@ -75,37 +82,25 @@ async function generateRandomOccupancy() {
   };
 }
 
-
-// exports.bookRooms = async (req, res) => {
-//   const { numRooms } = req.body;
-//   if (numRooms < 1 || numRooms > 5) {
-//     return res.status(400).json({ error: "Invalid number of rooms. Must be between 1 and 5." });
-//   }
-
-//   const floorMap = await getAvailableRooms();
-//   console.log("Available rooms per floor:", [...floorMap.entries()]);
-
-//   const bestRooms = findBestRooms(floorMap, numRooms);
-//   if (!bestRooms) return res.status(400).json({ error: "No suitable rooms available" });
-
-//   await updateRoomStatus(bestRooms.map((r) => r.id), true);
-//   return res.json({ message: "Rooms booked successfully", rooms: bestRooms });
-// };
-
+// Handles room booking requests.
 exports.bookRooms = async (req, res) => {
   const { numRooms } = req.body;
+
+  // Validate request (only 1-5 rooms can be booked at a time)
   if (numRooms < 1 || numRooms > 5) {
     return res.status(400).json({ error: "Invalid number of rooms. Must be between 1 and 5." });
   }
 
-  // Fetch updated room availability **AFTER** random occupancy
+  // Fetch updated room availability
   const floorMap = await getAvailableRooms(); 
   console.log("Updated available rooms per floor:", [...floorMap.entries()]);
 
+  // Find the best possible room selection
   const bestRooms = findBestRooms(floorMap, numRooms);
-  if (!bestRooms) return res.status(400).json({ error: "No suitable rooms available" });
+  if (!bestRooms) {
+    return res.status(400).json({ error: "No suitable rooms available" });
+  }
 
-  // Double-check if rooms are still available before booking
   const refreshedRooms = (await getAllRooms()).filter(room => !room.isBooked);
   const stillAvailable = bestRooms.every(room => refreshedRooms.some(r => r.id === room.id));
 
@@ -113,27 +108,31 @@ exports.bookRooms = async (req, res) => {
     return res.status(400).json({ error: "Some selected rooms were booked in the meantime. Try again." });
   }
 
+  // Mark the selected rooms as booked
   await updateRoomStatus(bestRooms.map((r) => r.id), true);
   return res.json({ message: "Rooms booked successfully", rooms: bestRooms });
 };
 
-
+// Retrieves all currently booked rooms.
 exports.getBookings = async (req, res) => {
   const rooms = await getAllRooms();
   res.json(rooms.filter((room) => room.isBooked));
 };
 
+
+// Resets all room bookings, making all rooms available again.
 exports.resetBookings = async (req, res) => {
   await updateRoomStatus((await getAllRooms()).map((r) => r.id), false);
   res.json({ message: "All bookings cleared!" });
 };
 
+// Generates random room bookings and returns the result.
 exports.generateRandomOccupancy = async (req, res) => {
   try {
-      const result = await generateRandomOccupancy();
-      res.json(result);
+    const result = await generateRandomOccupancy();
+    res.json(result);
   } catch (error) {
-      console.error("Error generating random occupancy:", error);
-      res.status(500).json({ error: "Internal server error" });
+    console.error("Error generating random occupancy:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

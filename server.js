@@ -10,10 +10,10 @@ app.use(bodyParser.json());
 
 app.get("/", (req, res) => res.send("Hotel Room Reservation System"));
 
-app.post("/bookRooms", bookRooms);
-app.get("/getBookings", getBookings);
-app.delete("/resetBookings", resetBookings);
-app.get("/randomOccupancy", generateRandomOccupancy);
+app.post("/bookRooms", bookRooms);  // API to book the entered number of rooms
+app.get("/getBookings", getBookings); // API to get all the bookings
+app.delete("/resetBookings", resetBookings); // API to delete existing bookings
+app.get("/randomOccupancy", generateRandomOccupancy); // API to generate random bookings
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

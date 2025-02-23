@@ -3,7 +3,6 @@ const db = require("./firebase");
 async function resetAndInitializeRooms() {
   const roomsCollection = db.collection("rooms");
 
-  // Delete all existing rooms
   const snapshot = await roomsCollection.get();
   const batchDelete = db.batch();
 
@@ -14,7 +13,6 @@ async function resetAndInitializeRooms() {
   await batchDelete.commit();
   console.log("All existing rooms deleted!");
 
-  // Now repopulate
   const rooms = [];
   for (let floor = 1; floor <= 9; floor++) {
     for (let i = 1; i <= 10; i++) {
